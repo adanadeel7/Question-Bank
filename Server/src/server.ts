@@ -15,3 +15,5 @@ async function startServer() {
         console.log(`server is running at ${process.env.PORT}`)
     }) 
 }
+
+startServer()

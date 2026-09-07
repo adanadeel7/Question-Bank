@@ -2,6 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
 import authRouter from './routes/auth.routes'
+import questionRouter from './routes/createQuestion.routes.js'
 
 const app = express()
 
@@ -23,6 +24,7 @@ app.get('/health', (req,res) => {
 })
 
 app.use('/auth',authRouter)
+app.use('/admin/questions', questionRouter)
 
 
 export default app; 
