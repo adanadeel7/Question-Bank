@@ -1,6 +1,7 @@
 import express from "express"
 import rateLimit from "express-rate-limit"
-import { registerHandler,resetPasswordHandler,loginHandler,forgotPasswordhandler,verifyEmailHandler,logoutHandler,refreshHandler } from '../controller/auth.controllers.js'
+import { registerHandler,resetPasswordHandler,loginHandler,forgotPasswordhandler,verifyEmailHandler,logoutHandler,refreshHandler,meHandler } from '../controller/auth.controllers.js'
+import { protect } from '../middlewares/auth.middleware.js'
 
 const authRouter = express.Router()
 
@@ -20,5 +21,6 @@ authRouter.post('/refresh', refreshHandler)
 authRouter.post('/logout',logoutHandler)
 authRouter.post('/forgot-password', strictAuthLimiter, forgotPasswordhandler)
 authRouter.post('/reset-password', strictAuthLimiter, resetPasswordHandler)
+authRouter.get('/me', protect, meHandler)
 
 export default authRouter

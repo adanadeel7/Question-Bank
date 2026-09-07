@@ -388,4 +388,18 @@ async function resetPasswordHandler(req: Request, res: Response) {
     }
 }
 
-export { verifyEmailHandler,loginHandler,refreshHandler,logoutHandler,registerHandler,forgotPasswordhandler,resetPasswordHandler };
+async function meHandler(req: Request, res: Response) {
+  const user = req.user!;
+
+  return res.status(200).json({
+    user: {
+      id: user.id,
+      email: user.email,
+      isEmailVerified: user.isEmailVerified,
+      twoFactorEnabled: user.twoFactorEnabled,
+      role: user.role,
+    },
+  });
+}
+
+export { verifyEmailHandler,loginHandler,refreshHandler,logoutHandler,registerHandler,forgotPasswordhandler,resetPasswordHandler,meHandler };
