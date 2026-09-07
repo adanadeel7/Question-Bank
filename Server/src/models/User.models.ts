@@ -1,16 +1,16 @@
 import mongoose from "mongoose";
-import { required } from "zod/mini";
 
 interface UserInterface { 
     name : string; 
     email: string; 
     password : string; 
-    isEmailVerified : Boolean; 
-    twoFactorEnabled : Boolean; 
-    twoFactorSecret : string; 
-    tokenVersion : Number; 
-    resetPassword : String;
-    resetPasswordExpires : Date; 
+    isEmailVerified : boolean;
+    twoFactorEnabled : boolean;
+    twoFactorSecret : string;
+    tokenVersion : number;
+    resetPassword : string;
+    resetPasswordExpires : Date;
+    role : "student" | "admin";
 
 }
 
@@ -28,8 +28,7 @@ const Userschema = new mongoose.Schema<UserInterface>({
     },
 
     password : { 
-        type : String, 
-        required : true, 
+        type : String,  
     },
 
     isEmailVerified : { 
@@ -57,9 +56,15 @@ const Userschema = new mongoose.Schema<UserInterface>({
         default : undefined
     },
 
-    resetPasswordExpires  : { 
-        type : Date, 
+    resetPasswordExpires  : {
+        type : Date,
         default : undefined
+    },
+
+    role : {
+        type : String,
+        enum : ["student", "admin"],
+        default : "student"
     },
 
 

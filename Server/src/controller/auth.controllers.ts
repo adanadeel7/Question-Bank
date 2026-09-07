@@ -170,9 +170,9 @@ async function loginHandler(req: Request, res: Response) {
       });
     }
 
-    const accessToken = createAccessToken(user.id, Number(user.tokenVersion));
+    const accessToken = createAccessToken(user.id, Number(user.tokenVersion), user.role);
 
-    const refreshToken = createRefreshToken(user.id, Number(user.tokenVersion));
+    const refreshToken = createRefreshToken(user.id, Number(user.tokenVersion), user.role);
 
     const isProd = process.env.NODE_ENV === "production";
     res.cookie("refreshToken", refreshToken, {
@@ -190,6 +190,7 @@ async function loginHandler(req: Request, res: Response) {
         email: user.email,
         isEmailVerified: user.isEmailVerified,
         twoFactorEnabled: user.twoFactorEnabled,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -222,11 +223,13 @@ async function refreshHandler(req: Request, res: Response) {
     const newAccessToken = createAccessToken(
       user.id,
       Number(user.tokenVersion),
+      user.role,
     );
 
     const newRefreshToken = createRefreshToken(
       user.id,
       Number(user.tokenVersion),
+      user.role,
     );
 
     const isProd = process.env.NODE_ENV === "production";
@@ -246,6 +249,7 @@ async function refreshHandler(req: Request, res: Response) {
         email: user.email,
         isEmailVerified: user.isEmailVerified,
         twoFactorEnabled: user.twoFactorEnabled,
+        role: user.role,
       },
     });
   } catch (error) {
