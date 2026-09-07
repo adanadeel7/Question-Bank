@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const TOPICS = [
+export const TOPICS = [
     "quadratics",
     "functions",
     "coordinate-geometry",
@@ -11,7 +11,7 @@ const TOPICS = [
     "integration",
 ] as const;
 
-type Topic = typeof TOPICS[number];
+export type Topic = typeof TOPICS[number];
 
 const STATES = ["cropped", "tagged", "reviewed"] as const;
 

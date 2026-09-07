@@ -7,9 +7,10 @@ export function createAccessToken(
 ) {
 
     const payload = {sub: userId, tokenVersion, role}
-    const jwt_Secret = process.env.JWT_SECRET
+    const jwt_Secret = process.env.JWT_ACCESS_SECRET
      return jwt.sign(payload, jwt_Secret!, {
-        expiresIn : '30m'
+        expiresIn : '30m',
+        algorithm : 'HS256'
     })
 
 }
@@ -19,15 +20,16 @@ export function createRefreshToken(userId : string,
     role : "student" | "admin"
 ) {
     const payload = {sub : userId, tokenVersion, role}
-    const jwt_Secret = process.env.JWT_SECRET
+    const jwt_Secret = process.env.JWT_REFRESH_SECRET
 
     return jwt.sign(payload, jwt_Secret!, {
-        expiresIn : '7d'
+        expiresIn : '7d',
+        algorithm : 'HS256'
     })
 }
 
 export function verifyRefreshToken(token : string) {
-    return jwt.verify(token,process.env.JWT_ACCESS_SECRET! ) as {
+    return jwt.verify(token, process.env.JWT_REFRESH_SECRET!, { algorithms : ['HS256'] }) as {
         sub : string;
         tokenVersion : number;
         role : "student" | "admin";

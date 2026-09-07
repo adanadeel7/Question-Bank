@@ -1,16 +1,17 @@
 import mongoose from "mongoose";
 
-interface UserInterface { 
-    name : string; 
-    email: string; 
-    password : string; 
+interface UserInterface {
+    name : string;
+    email: string;
+    password? : string;
     isEmailVerified : boolean;
     twoFactorEnabled : boolean;
-    twoFactorSecret : string;
+    twoFactorSecret? : string;
     tokenVersion : number;
-    resetPassword : string;
-    resetPasswordExpires : Date;
+    resetPassword? : string;
+    resetPasswordExpires? : Date;
     role : "student" | "admin";
+    googleId? : string;
 
 }
 
@@ -65,6 +66,12 @@ const Userschema = new mongoose.Schema<UserInterface>({
         type : String,
         enum : ["student", "admin"],
         default : "student"
+    },
+
+    googleId : {
+        type : String,
+        unique : true,
+        sparse : true
     },
 
 

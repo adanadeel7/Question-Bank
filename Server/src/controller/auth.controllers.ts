@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { User } from "../models/User.models.js";
 import { Request, Response } from "express";
-import { registerSchema, loginSchema } from "./auth.schema.js";
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.schema.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { checkPassword, hashPassword } from "../libs/hash.js";
@@ -12,7 +12,7 @@ import {
   verifyRefreshToken,
 } from "../libs/token.js";
 
-const jwt_Secret = process.env.jwt_Secret;
+const jwt_Secret = process.env.JWT_ACCESS_SECRET;
 
 function getAppURL() {
   return process.env.APP_URL;
@@ -45,6 +45,7 @@ async function registerHandler(req: Request, res: Response) {
     const newlyCreatedUser = await User.create({
       name: name,
       email: normalizedEmail,
+      password: passwordhash,
       isEmailVerified: false,
       twoFactorEnabled: false,
     });
@@ -60,6 +61,7 @@ async function registerHandler(req: Request, res: Response) {
       jwt_Secret,
       {
         expiresIn: "1d",
+        algorithm: "HS256",
       },
     );
 
@@ -107,7 +109,7 @@ async function verifyEmailHandler(req: Request, res: Response) {
       throw Error("jwt Secret not in envoriment variables");
     }
 
-    const payload = jwt.verify(token, jwt_Secret) as {
+    const payload = jwt.verify(token, jwt_Secret, { algorithms: ["HS256"] }) as {
       sub: string;
     };
 
@@ -151,6 +153,12 @@ async function loginHandler(req: Request, res: Response) {
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
+      return res.status(400).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    if (!user.password) {
       return res.status(400).json({
         message: "Invalid email or password",
       });
@@ -261,7 +269,18 @@ async function refreshHandler(req: Request, res: Response) {
 }
 
 async function logoutHandler(req: Request, res: Response) {
-  res.clearCookie("refrestToken", { path: "/" });
+  const token = req.cookies?.refreshToken as string | undefined;
+
+  if (token) {
+    try {
+      const payload = verifyRefreshToken(token);
+      await User.findByIdAndUpdate(payload.sub, { $inc: { tokenVersion: 1 } });
+    } catch (error) {
+      // token already invalid/expired — nothing to invalidate server-side
+    }
+  }
+
+  res.clearCookie("refreshToken", { path: "/" });
 
   return res.status(200).json({
     message: "User logout",
@@ -269,11 +288,16 @@ async function logoutHandler(req: Request, res: Response) {
 }
 
 async function forgotPasswordhandler(req: Request, res: Response) {
-  const { email } = req.body as { email?: string };
+  const result = forgotPasswordSchema.safeParse(req.body);
 
-  if (!email) {
-    return res.status(400).json({ message: "Email is Required" });
+  if (!result.success) {
+    return res.status(400).json({
+      message: "Invalid data",
+      errors: result.error.flatten(),
+    });
   }
+
+  const { email } = result.data;
 
   const normalizedEmail = email.toLowerCase().trim();
 
@@ -289,7 +313,7 @@ async function forgotPasswordhandler(req: Request, res: Response) {
 
     const rawToken = crypto.randomBytes(32).toString("hex");
 
-    const tokenHash = crypto.createHash("sha256").update(rawToken).toString();
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
     user.resetPassword = tokenHash;
     user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -322,16 +346,16 @@ async function forgotPasswordhandler(req: Request, res: Response) {
 }
 
 async function resetPasswordHandler(req: Request, res: Response) {
-const {token, password} = req.body as {token? : string; password?:string}
-  if(!token) { 
-        return res.status(400).json({message : "Reset Token is Missing"})
+  const result = resetPasswordSchema.safeParse(req.body)
 
-    }
+  if (!result.success) {
+    return res.status(400).json({
+      message: "Invalid data",
+      errors: result.error.flatten(),
+    })
+  }
 
-    
-  if (!password || password.length < 6) { 
-        return res.status(400).json({message: 'Password must atleast be 6 char long'})
-    }
+  const { token, password } = result.data
 
      try {
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
