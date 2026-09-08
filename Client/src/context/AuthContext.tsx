@@ -5,6 +5,7 @@ import {
   logoutRequest,
   refreshRequest,
   registerRequest,
+  setAccessToken as setApiAccessToken,
   type ApiUser,
 } from "../lib/api";
 
@@ -29,10 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((data) => {
         setUser(data.user);
         setAccessToken(data.accessToken);
+        setApiAccessToken(data.accessToken);
       })
       .catch(() => {
         setUser(null);
         setAccessToken(null);
+        setApiAccessToken(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -41,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await loginRequest({ email, password });
     setUser(data.user);
     setAccessToken(data.accessToken);
+    setApiAccessToken(data.accessToken);
   }
 
   async function register(name: string, email: string, password: string) {
@@ -51,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutRequest().catch(() => {});
     setUser(null);
     setAccessToken(null);
+    setApiAccessToken(null);
   }
 
   return (

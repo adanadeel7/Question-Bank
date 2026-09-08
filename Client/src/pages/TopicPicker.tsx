@@ -1,67 +1,38 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { NavRail } from "../components/NavRail";
+import { getQuestionsRequest, type ApiQuestion } from "../lib/api";
 
-const TOPICS = ["Quadratics", "Functions", "Coordinate geometry", "Circular measure", "Trigonometry", "Series", "Differentiation", "Integration"];
+const TOPIC_OPTIONS = [
+  { label: "Quadratics", value: "quadratics" },
+  { label: "Functions", value: "functions" },
+  { label: "Coordinate geometry", value: "coordinate-geometry" },
+  { label: "Circular measure", value: "circular-measure" },
+  { label: "Trigonometry", value: "trigonometry" },
+  { label: "Series", value: "series" },
+  { label: "Differentiation", value: "differentiation" },
+  { label: "Integration", value: "integration" },
+];
 const SESSIONS = ["May/June", "Oct/Nov", "Feb/Mar"];
 const VARIANTS = ["1", "2", "3"];
 const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 const MAX_SESSION_LENGTH = 10;
-
-interface Question {
-  year: number; session: string; variant: string; qnum: number; marks: number; topics: string[]; attempted: boolean;
-}
-
-function buildBank(): Question[] {
-  let seed = 20240906;
-  const rnd = () => {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    return seed / 2147483648;
-  };
-  const out: Question[] = [];
-  YEARS.forEach((year) => {
-    SESSIONS.forEach((session) => {
-      if (session === "Feb/Mar" && year < 2018) return;
-      VARIANTS.forEach((variant) => {
-        if (session === "Feb/Mar" && variant !== "2") return;
-        const n = 3 + Math.floor(rnd() * 4);
-        for (let k = 0; k < n; k++) {
-          const t = TOPICS[Math.floor(rnd() * TOPICS.length)];
-          const second = rnd() > 0.72 ? TOPICS[Math.floor(rnd() * TOPICS.length)] : null;
-          out.push({
-            year, session, variant,
-            qnum: 1 + Math.floor(rnd() * 11),
-            marks: [4, 5, 6, 7, 8, 9, 10][Math.floor(rnd() * 7)],
-            topics: second && second !== t ? [t, second] : [t],
-            attempted: rnd() > 0.78,
-          });
-        }
-      });
-    });
-  });
-  return out;
-}
-
-const BANK = buildBank();
 const DEFAULT_TOPICS = ["Integration"];
 
-interface Filters {
-  topics: string[]; from: number; to: number; sessions: string[]; variants: string[]; unseen: boolean;
-}
-
-function match(f: Filters) {
-  return BANK.filter(
-    (q) =>
-      (!f.topics.length || q.topics.some((t) => f.topics.includes(t))) &&
-      q.year >= f.from && q.year <= f.to &&
-      (!f.sessions.length || f.sessions.includes(q.session)) &&
-      (!f.variants.length || f.variants.includes(q.variant)) &&
-      (!f.unseen || !q.attempted),
-  );
+interface Row extends ApiQuestion {
+  attempted: boolean;
 }
 
 function toggleIn(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+function topicValue(label: string) {
+  return TOPIC_OPTIONS.find((t) => t.label === label)?.value ?? label;
+}
+
+function topicLabel(value: string) {
+  return TOPIC_OPTIONS.find((t) => t.value === value)?.label ?? value;
 }
 
 export function TopicPicker() {
@@ -73,13 +44,69 @@ export function TopicPicker() {
   const [variants, setVariants] = useState<string[]>([]);
   const [unseen, setUnseen] = useState(false);
 
-  const f: Filters = { topics, from, to, sessions, variants, unseen };
-  const hits = useMemo(() => match(f), [topics, from, to, sessions, variants, unseen]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
+
+  // Per-topic sidebar counts, fetched once on mount (see note above about live-per-keystroke cost)
+  useEffect(() => {
+    Promise.all(
+      TOPIC_OPTIONS.map((t) =>
+        getQuestionsRequest({ topics: [t.value] }).then((r) => [t.value, r.questions.length] as const),
+      ),
+    ).then((entries) => setTopicCounts(Object.fromEntries(entries)));
+  }, []);
+
+  const yearWarn = to < from;
+
+  useEffect(() => {
+    if (yearWarn) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+
+    const filters = {
+      topics: topics.map(topicValue),
+      sessions,
+      variants,
+      from,
+      to,
+    };
+
+    Promise.all([
+      getQuestionsRequest({ ...filters, unseen: false }),
+      getQuestionsRequest({ ...filters, unseen: true }),
+    ])
+      .then(([full, unseenOnly]) => {
+        if (cancelled) return;
+        const unseenIds = new Set(unseenOnly.questions.map((q) => q._id));
+        setRows(full.questions.map((q) => ({ ...q, attempted: !unseenIds.has(q._id) })));
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load questions");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [topics, from, to, sessions, variants, yearWarn]);
+
+  const hits = unseen ? rows.filter((r) => !r.attempted) : rows;
   const count = hits.length;
   const shown = hits.slice(0, MAX_SESSION_LENGTH);
   const take = Math.min(count, MAX_SESSION_LENGTH);
-  const touched = topics.length !== 1 || topics[0] !== "Integration" || from !== 2016 || to !== 2024 || sessions.length > 0 || variants.length > 0 || unseen;
-  const yearWarn = to < from;
+  const touched =
+    topics.length !== 1 || topics[0] !== "Integration" || from !== 2016 || to !== 2024 ||
+    sessions.length > 0 || variants.length > 0 || unseen;
 
   function reset() {
     setTopics(DEFAULT_TOPICS.slice()); setFrom(2016); setTo(2024); setSessions([]); setVariants([]); setUnseen(false);
@@ -88,7 +115,7 @@ export function TopicPicker() {
   let emptyAdvice = "Try widening the year range.";
   let widenLabel = "Widen to 2016 to 2024";
   let widen = () => { setFrom(2016); setTo(2024); };
-  if (to < from) {
+  if (yearWarn) {
     emptyAdvice = "The year range runs backwards, so nothing can match. Swapping the years fixes it.";
     widenLabel = "Swap the years";
     widen = () => { setFrom(to); setTo(from); };
@@ -104,6 +131,10 @@ export function TopicPicker() {
     emptyAdvice = "This combination of session and variant has no questions tagged yet. Clearing the session filter usually helps.";
     widenLabel = "Clear session and variant";
     widen = () => { setSessions([]); setVariants([]); };
+  } else {
+    emptyAdvice = "No questions have been added to the bank for this topic yet.";
+    widenLabel = "Try a different topic";
+    widen = () => setTopics(DEFAULT_TOPICS.slice());
   }
 
   return (
@@ -132,14 +163,13 @@ export function TopicPicker() {
             <fieldset className="mb-6 border-none p-0">
               <legend className="mb-2.5 p-0 text-[13px] font-semibold text-graphite">Syllabus topic</legend>
               <div className="flex flex-col gap-px">
-                {TOPICS.map((name) => {
-                  const on = topics.includes(name);
-                  const c = match({ ...f, topics: [name] }).length;
+                {TOPIC_OPTIONS.map(({ label, value }) => {
+                  const on = topics.includes(label);
                   return (
-                    <label key={name} className="flex cursor-pointer items-center gap-2.5 rounded-md py-1.5 pr-1.5 hover:bg-tint">
-                      <input type="checkbox" checked={on} onChange={() => setTopics((prev) => toggleIn(prev, name))} className="m-0 h-4 w-4 cursor-pointer accent-cobalt" />
-                      <span className="flex-1 text-sm">{name}</span>
-                      <span className="font-display text-[13px] text-graphite [font-variant-numeric:tabular-nums]">{c}</span>
+                    <label key={label} className="flex cursor-pointer items-center gap-2.5 rounded-md py-1.5 pr-1.5 hover:bg-tint">
+                      <input type="checkbox" checked={on} onChange={() => setTopics((prev) => toggleIn(prev, label))} className="m-0 h-4 w-4 cursor-pointer accent-cobalt" />
+                      <span className="flex-1 text-sm">{label}</span>
+                      <span className="font-display text-[13px] text-graphite [font-variant-numeric:tabular-nums]">{topicCounts[value] ?? "…"}</span>
                     </label>
                   );
                 })}
@@ -205,24 +235,30 @@ export function TopicPicker() {
             <div className="flex flex-wrap items-end gap-x-[30px] gap-y-4.5 border-b border-line pb-[18px]">
               <div className="flex items-baseline gap-2.5">
                 <span className="font-display text-[44px] font-semibold leading-none transition-colors [font-variant-numeric:tabular-nums]" style={{ color: count ? "var(--color-ink)" : "var(--color-graphite)" }}>
-                  {count}
+                  {loading ? "…" : count}
                 </span>
                 <span className="text-base text-graphite">{count === 1 ? "question matches" : "questions match"}</span>
               </div>
               <span className="max-w-[38ch] text-sm leading-[1.5] text-graphite">
-                {count
-                  ? `Across ${new Set(hits.map((q) => q.year)).size} years. ${hits.filter((q) => q.attempted).length} you have attempted before.`
-                  : "Nothing to practise with these filters yet."}
+                {error
+                  ? error
+                  : loading
+                    ? "Loading…"
+                    : count
+                      ? `Across ${new Set(hits.map((q) => q.year)).size} years. ${hits.filter((q) => q.attempted).length} you have attempted before.`
+                      : "Nothing to practise with these filters yet."}
               </span>
             </div>
 
-            {count > 0 ? (
+            {!loading && count > 0 ? (
               <div className="mt-1.5">
-                {shown.map((q, k) => (
-                  <div key={k} className="grid grid-cols-[minmax(0,1fr)_96px_84px] items-center gap-3.5 border-b border-line py-3.5">
+                {shown.map((q) => (
+                  <div key={q._id} className="grid grid-cols-[minmax(0,1fr)_96px_84px] items-center gap-3.5 border-b border-line py-3.5">
                     <div className="min-w-0">
-                      <div className="text-[15px] font-medium [font-variant-numeric:tabular-nums]">9709 Paper {q.variant} · {q.session} {q.year} · Question {q.qnum}</div>
-                      <div className="mt-0.5 text-[13px] text-graphite">{q.topics.join(", ")}</div>
+                      <div className="text-[15px] font-medium [font-variant-numeric:tabular-nums]">
+                        {q.code} Paper {q.variant} · {q.session} {q.year} · Question {q.question_number}
+                      </div>
+                      <div className="mt-0.5 text-[13px] text-graphite">{topicLabel(q.topic)}</div>
                     </div>
                     <span className="text-sm text-graphite [font-variant-numeric:tabular-nums]">{q.marks} marks</span>
                     <span className="text-right text-[13px]" style={{ color: q.attempted ? "var(--color-graphite)" : "var(--color-ember)" }}>
@@ -234,7 +270,7 @@ export function TopicPicker() {
                   {count > MAX_SESSION_LENGTH ? `Showing the first ${MAX_SESSION_LENGTH} of ${count}. The session draws from all of them.` : "That is all of them."}
                 </p>
               </div>
-            ) : (
+            ) : !loading && (
               <div className="mt-[34px] max-w-[44ch]">
                 <h3 className="mb-2 font-display text-[19px] font-semibold">No questions match these filters</h3>
                 <p className="mb-[18px] text-[15px] leading-[1.6] text-graphite">{emptyAdvice}</p>
@@ -250,7 +286,7 @@ export function TopicPicker() {
           <button
             type="button"
             disabled={count === 0}
-            onClick={() => navigate("/practice")}
+            onClick={() => navigate("/practice", { state: { questions: shown } })}
             className="cursor-pointer rounded-lg border-none px-7 py-4 font-body text-base font-semibold text-cobalt-ink transition-colors active:translate-y-px disabled:cursor-not-allowed"
             style={{ background: count === 0 ? "var(--color-graphite)" : "var(--color-cobalt)" }}
           >

@@ -1,5 +1,5 @@
 import express from "express"
-import { createQuestionHandler } from "../controller/createQuestion.controllers.js"
+import { createQuestionHandler, getQuestionHandler } from "../controller/createQuestion.controllers.js"
 import { protect } from "../middlewares/auth.middleware.js"
 import { requireAdmin } from "../middlewares/admin.middleware.js"
 import { upload } from "../middlewares/upload.middleware.js"
@@ -16,5 +16,6 @@ questionRouter.post(
     ]),
     createQuestionHandler,
 )
+
 
 export default questionRouter

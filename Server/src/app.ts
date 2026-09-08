@@ -3,7 +3,9 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
 import authRouter from './routes/auth.routes'
-import questionRouter from './routes/createQuestion.routes.js'
+import questionRouter from './routes/createQuestionAdmin.routes.js'
+import userquestionRouter from './routes/createQuestionUser.js'
+import attemptRouter from './routes/attempts.routes.js'
 
 const app = express()
 
@@ -30,6 +32,8 @@ app.get('/health', (req,res) => {
 
 app.use('/auth',authRouter)
 app.use('/admin/questions', questionRouter)
+app.use('/questions',userquestionRouter)
+app.use('/attempts',attemptRouter)
 
 
 export default app; 

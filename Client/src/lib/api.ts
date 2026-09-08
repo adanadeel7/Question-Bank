@@ -1,5 +1,11 @@
 const API_URL = import.meta.env.VITE_API_URL as string;
 
+let currentAccessToken: string | null = null;
+
+export function setAccessToken(token: string | null) {
+  currentAccessToken = token;
+}
+
 export interface ApiUser {
   id: string;
   email: string;
@@ -28,6 +34,7 @@ async function request<T>(
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(currentAccessToken ? { Authorization: `Bearer ${currentAccessToken}` } : {}),
       ...options.headers,
     },
   });
@@ -69,4 +76,56 @@ export function verifyEmailRequest(token: string) {
   return request<{ message: string }>(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
     method: "GET",
   });
+}
+
+export interface ApiQuestion {
+  _id: string;
+  subject: string;
+  code: number;
+  year: number;
+  session: string;
+  variant: number;
+  question_number: number;
+  content: { url: string; publicId: string };
+  text: string;
+  topic: string;
+  state: string;
+  marks: number;
+}
+
+export interface GetQuestionsParams {
+  topics?: string[];
+  sessions?: string[];
+  variants?: string[];
+  from?: number;
+  to?: number;
+  unseen?: boolean;
+}
+
+export function getQuestionsRequest(params: GetQuestionsParams) {
+  const qs = new URLSearchParams();
+  params.topics?.forEach((t) => qs.append("topics", t));
+  params.sessions?.forEach((s) => qs.append("sessions", s));
+  params.variants?.forEach((v) => qs.append("variants", v));
+  if (params.from !== undefined) qs.set("from", String(params.from));
+  if (params.to !== undefined) qs.set("to", String(params.to));
+  if (params.unseen !== undefined) qs.set("unseen", String(params.unseen));
+
+  return request<{ message: string; questions: ApiQuestion[] }>(`/questions?${qs.toString()}`, {
+    method: "GET",
+  });
+}
+
+export function getMarkingSchemeRequest(questionId: string) {
+  return request<{ message: string; marking_scheme: { url: string; publicId: string }; marks: number }>(
+    `/questions/${questionId}/marking-scheme`,
+    { method: "GET" },
+  );
+}
+
+export function createAttemptRequest(body: { question: string; marksScored: number; timeTaken: number }) {
+  return request<{ message: string; attempt: { _id: string; marksScored: number; timeTaken: number } }>(
+    "/attempts",
+    { method: "POST", body: JSON.stringify(body) },
+  );
 }
