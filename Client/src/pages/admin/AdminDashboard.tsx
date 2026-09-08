@@ -62,6 +62,7 @@ export function AdminDashboard() {
           <span className="text-[13px] font-semibold text-white">Overview</span>
           <Link to="/admin/queue" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">Ingestion review</Link>
           <Link to="/admin/questions/editor" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">Question editor</Link>
+          <Link to="/admin/questions/new" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">Add question</Link>
           <span className="text-[13px] font-medium text-[#9AA4B0]">Reports</span>
         </nav>
         <span className="ml-auto text-[13px] text-[#9AA4B0] [font-variant-numeric:tabular-nums]">

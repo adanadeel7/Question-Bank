@@ -29,11 +29,13 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const isFormData = options.body instanceof FormData;
+
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(currentAccessToken ? { Authorization: `Bearer ${currentAccessToken}` } : {}),
       ...options.headers,
     },
@@ -128,4 +130,11 @@ export function createAttemptRequest(body: { question: string; marksScored: numb
     "/attempts",
     { method: "POST", body: JSON.stringify(body) },
   );
+}
+
+export function createQuestionRequest(formData: FormData) {
+  return request<{ message: string; question: ApiQuestion }>("/admin/questions", {
+    method: "POST",
+    body: formData,
+  });
 }

@@ -16,6 +16,7 @@ import { NotBuiltYet } from "./pages/NotBuiltYet";
 import { AdminIngestionQueue } from "./pages/admin/AdminIngestionQueue";
 import { AdminQuestionEditor } from "./pages/admin/AdminQuestionEditor";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { AdminAddQuestion } from "./pages/admin/AdminAddQuestion";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App() {
@@ -103,6 +104,14 @@ function App() {
         element={
           <ProtectedRoute requireAdmin>
             <AdminIngestionQueue />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/new"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminAddQuestion />
           </ProtectedRoute>
         }
       />

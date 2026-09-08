@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Attempt } from "../models/Attempt.models.js";
 import { Question } from "../models/Questions.models.js";
+import { UserStats } from "../models/userStats.models.js";
 import { attemptSchema } from "./attempts.schema.js";
 
 async function createAttemptHandler(req: Request, res: Response) {
@@ -36,6 +37,21 @@ async function createAttemptHandler(req: Request, res: Response) {
       marksScored,
       timeTaken,
     });
+
+    await UserStats.findOneAndUpdate(
+      { user: req.user!.id },
+      {
+        $inc: {
+          totalAttempted: 1,
+          totalMarksScored: marksScored,
+          totalMarksPossible: questionDoc.marks,
+          [`topics.${questionDoc.topic}.attempted`]: 1,
+          [`topics.${questionDoc.topic}.marksScored`]: marksScored,
+          [`topics.${questionDoc.topic}.marksPossible`]: questionDoc.marks,
+        },
+      },
+      { upsert: true },
+    );
 
     return res.status(201).json({
       message: "Attempt recorded",
