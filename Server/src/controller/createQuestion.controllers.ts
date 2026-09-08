@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { Question } from "../models/Questions.models.js";
 import { Attempt } from "../models/Attempt.models.js";
-import { createQuestionSchema } from "./createQuestion.schema.js";
-import { uploadBufferToCloudinary } from "../config/cloudinaryUpload.js";
+import { createQuestionSchema, updateQuestionSchema } from "./createQuestion.schema.js";
+import { uploadBufferToCloudinary, deleteFromCloudinary } from "../config/cloudinaryUpload.js";
 import { getQuestionsSchema } from "./getQuestions.schema.js";
 import { QueryFilter } from "mongoose";
 async function createQuestionHandler(req: Request, res: Response) {
@@ -141,4 +141,143 @@ async function getMarkingSchemeHandler(req: Request, res: Response) {
   }
 }
 
-export { createQuestionHandler, getQuestionHandler, getMarkingSchemeHandler };
+async function reviewQuestionHandler(req: Request, res: Response) {
+  const id = req.params.id as string;
+
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return res.status(400).json({
+      message: "Invalid question id",
+    });
+  }
+
+  try {
+    const question = await Question.findByIdAndUpdate(
+      id,
+      { state: "reviewed" },
+      { new: true },
+    );
+
+    if (!question) {
+      return res.status(404).json({
+        message: "Question not found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Question marked reviewed",
+      question,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal Error",
+    });
+  }
+}
+
+async function updateQuestionHandler(req: Request, res: Response) {
+  const id = req.params.id as string;
+
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return res.status(400).json({
+      message: "Invalid question id",
+    });
+  }
+
+  try {
+    const result = updateQuestionSchema.safeParse(req.body);
+
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Invalid data",
+        errors: result.error.flatten(),
+      });
+    }
+
+    const existing = await Question.findById(id);
+
+    if (!existing) {
+      return res.status(404).json({
+        message: "Question not found",
+      });
+    }
+
+    const files = req.files as
+      | { content?: Express.Multer.File[]; marking_scheme?: Express.Multer.File[] }
+      | undefined;
+
+    const contentFile = files?.content?.[0];
+    const markingSchemeFile = files?.marking_scheme?.[0];
+
+    const updateData: Record<string, unknown> = { ...result.data };
+
+    if (contentFile) {
+      const newContent = await uploadBufferToCloudinary(contentFile.buffer);
+      await deleteFromCloudinary(existing.content.publicId);
+      updateData.content = newContent;
+    }
+
+    if (markingSchemeFile) {
+      const newMarkingScheme = await uploadBufferToCloudinary(markingSchemeFile.buffer);
+      await deleteFromCloudinary(existing.marking_scheme.publicId);
+      updateData.marking_scheme = newMarkingScheme;
+    }
+
+    const question = await Question.findByIdAndUpdate(id, updateData, { new: true });
+
+    return res.status(200).json({
+      message: "Question updated",
+      question,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal Error",
+    });
+  }
+}
+
+async function deleteQuestionHandler(req: Request, res: Response) {
+  const id = req.params.id as string;
+
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return res.status(400).json({
+      message: "Invalid question id",
+    });
+  }
+
+  try {
+    const existing = await Question.findById(id);
+
+    if (!existing) {
+      return res.status(404).json({
+        message: "Question not found",
+      });
+    }
+
+    await Promise.all([
+      deleteFromCloudinary(existing.content.publicId),
+      deleteFromCloudinary(existing.marking_scheme.publicId),
+    ]);
+
+    await Question.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      message: "Question deleted",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal Error",
+    });
+  }
+}
+
+export {
+  createQuestionHandler,
+  getQuestionHandler,
+  getMarkingSchemeHandler,
+  reviewQuestionHandler,
+  updateQuestionHandler,
+  deleteQuestionHandler,
+};

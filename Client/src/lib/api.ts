@@ -138,3 +138,41 @@ export function createQuestionRequest(formData: FormData) {
     body: formData,
   });
 }
+
+export function updateQuestionRequest(id: string, formData: FormData) {
+  return request<{ message: string; question: ApiQuestion }>(`/admin/questions/${id}`, {
+    method: "PUT",
+    body: formData,
+  });
+}
+
+export function deleteQuestionRequest(id: string) {
+  return request<{ message: string }>(`/admin/questions/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function reviewQuestionRequest(id: string) {
+  return request<{ message: string; question: ApiQuestion }>(`/admin/questions/${id}/review`, {
+    method: "PATCH",
+  });
+}
+
+export interface ApiTopicStats {
+  attempted: number;
+  marksScored: number;
+  marksPossible: number;
+}
+
+export interface ApiUserStats {
+  topics: Record<string, ApiTopicStats>;
+  totalAttempted: number;
+  totalMarksScored: number;
+  totalMarksPossible: number;
+}
+
+export function getMyStatsRequest() {
+  return request<{ message: string; stats: ApiUserStats }>("/me/stats", {
+    method: "GET",
+  });
+}

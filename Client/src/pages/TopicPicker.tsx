@@ -2,17 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { NavRail } from "../components/NavRail";
 import { getQuestionsRequest, type ApiQuestion } from "../lib/api";
+import { TOPIC_OPTIONS, topicLabel } from "../lib/topics";
 
-const TOPIC_OPTIONS = [
-  { label: "Quadratics", value: "quadratics" },
-  { label: "Functions", value: "functions" },
-  { label: "Coordinate geometry", value: "coordinate-geometry" },
-  { label: "Circular measure", value: "circular-measure" },
-  { label: "Trigonometry", value: "trigonometry" },
-  { label: "Series", value: "series" },
-  { label: "Differentiation", value: "differentiation" },
-  { label: "Integration", value: "integration" },
-];
 const SESSIONS = ["May/June", "Oct/Nov", "Feb/Mar"];
 const VARIANTS = ["1", "2", "3"];
 const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
@@ -29,10 +20,6 @@ function toggleIn(list: string[], value: string) {
 
 function topicValue(label: string) {
   return TOPIC_OPTIONS.find((t) => t.label === label)?.value ?? label;
-}
-
-function topicLabel(value: string) {
-  return TOPIC_OPTIONS.find((t) => t.value === value)?.label ?? value;
 }
 
 export function TopicPicker() {

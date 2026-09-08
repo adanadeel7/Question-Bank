@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { createQuestionRequest } from "../../lib/api";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
+import { getMarkingSchemeRequest, updateQuestionRequest, type ApiQuestion } from "../../lib/api";
 import { TOPIC_OPTIONS } from "../../lib/topics";
 import { ImageField } from "../../components/admin/ImageCropField";
 
@@ -8,30 +8,49 @@ const SESSIONS = ["May/June", "Oct/Nov", "Feb/Mar"];
 const VARIANTS = ["1", "2", "3"];
 const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
-export function AdminAddQuestion() {
-  const [session, setSession] = useState(SESSIONS[0]);
-  const [variant, setVariant] = useState(VARIANTS[0]);
-  const [year, setYear] = useState(YEARS[YEARS.length - 1]);
-  const [questionNumber, setQuestionNumber] = useState("");
-  const [marks, setMarks] = useState("");
-  const [topic, setTopic] = useState(TOPIC_OPTIONS[0].value);
-  const [text, setText] = useState("");
+export function AdminEditQuestion() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const question = (location.state as { question?: ApiQuestion } | null)?.question ?? null;
+
+  const [session, setSession] = useState(question?.session ?? SESSIONS[0]);
+  const [variant, setVariant] = useState(String(question?.variant ?? VARIANTS[0]));
+  const [year, setYear] = useState(question?.year ?? YEARS[YEARS.length - 1]);
+  const [questionNumber, setQuestionNumber] = useState(String(question?.question_number ?? ""));
+  const [marks, setMarks] = useState(String(question?.marks ?? ""));
+  const [topic, setTopic] = useState(question?.topic ?? TOPIC_OPTIONS[0].value);
+  const [text, setText] = useState(question?.text ?? "");
   const [contentFile, setContentFile] = useState<File | null>(null);
   const [schemeFile, setSchemeFile] = useState<File | null>(null);
+  const [schemeUrl, setSchemeUrl] = useState<string | undefined>(undefined);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [justAdded, setJustAdded] = useState<{ questionNumber: string; topic: string } | null>(null);
 
-  const valid = questionNumber.trim() !== "" && marks.trim() !== "" && text.trim() !== "" && contentFile && schemeFile;
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getMarkingSchemeRequest(id)
+      .then((res) => {
+        if (!cancelled) setSchemeUrl(res.marking_scheme.url);
+      })
+      .catch(() => {
+        // Preview is a nice-to-have — leave it blank if this fails.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const valid = questionNumber.trim() !== "" && marks.trim() !== "" && text.trim() !== "";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || submitting) return;
+    if (!id || !valid || submitting) return;
 
     setSubmitting(true);
     setError("");
-    setJustAdded(null);
 
     const formData = new FormData();
     formData.set("subject", "Mathematics");
@@ -43,23 +62,25 @@ export function AdminAddQuestion() {
     formData.set("marks", marks);
     formData.set("topic", topic);
     formData.set("text", text);
-    formData.set("content", contentFile!);
-    formData.set("marking_scheme", schemeFile!);
+    if (contentFile) formData.set("content", contentFile);
+    if (schemeFile) formData.set("marking_scheme", schemeFile);
 
     try {
-      await createQuestionRequest(formData);
-      setJustAdded({ questionNumber, topic: TOPIC_OPTIONS.find((t) => t.value === topic)?.label ?? topic });
-      // Keep session/year — the next question is usually from the same paper.
-      setQuestionNumber("");
-      setMarks("");
-      setText("");
-      setContentFile(null);
-      setSchemeFile(null);
+      await updateQuestionRequest(id, formData);
+      navigate("/admin/questions/all");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the question");
-    } finally {
+      setError(err instanceof Error ? err.message : "Could not update the question");
       setSubmitting(false);
     }
+  }
+
+  if (!question) {
+    return (
+      <div className="min-h-screen bg-admin-paper px-5 py-8 font-body text-[14px] text-admin-ink">
+        <p className="mb-3 text-sm text-ember">No question loaded — open this page from the "All questions" list.</p>
+        <Link to="/admin/questions/all" className="text-sm font-medium text-cobalt hover:underline">Back to all questions</Link>
+      </div>
+    );
   }
 
   return (
@@ -69,23 +90,19 @@ export function AdminAddQuestion() {
         <nav className="flex gap-4">
           <Link to="/admin" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">Overview</Link>
           <Link to="/admin/queue" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">Ingestion review</Link>
-          <span className="text-[13px] font-semibold text-white">Add question</span>
+          <Link to="/admin/questions/new" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">Add question</Link>
           <Link to="/admin/questions/all" className="text-[13px] font-medium text-[#9AA4B0] hover:text-white hover:no-underline">All questions</Link>
         </nav>
       </header>
 
       <main className="mx-auto max-w-[760px] px-5 py-8">
-        <h1 className="mb-1 font-display text-2xl font-semibold">Add a question</h1>
+        <h1 className="mb-1 font-display text-2xl font-semibold">
+          Edit question {question.code} P{question.variant} · {question.session} {question.year} · Q{question.question_number}
+        </h1>
         <p className="mb-6 text-[13px] text-admin-graphite">
-          Mathematics 9709, Paper 1. This is the real create-question endpoint — every submission here is a live
-          question students can practise.
+          Leave an image field untouched to keep the current crop — only choose a new image to replace it.
         </p>
 
-        {justAdded && (
-          <div className="mb-5 border border-admin-line bg-surface px-4 py-3 text-sm">
-            <span className="font-semibold text-admin-ink">Added</span> — Question {justAdded.questionNumber} ({justAdded.topic}). Form is reset, ready for the next one.
-          </div>
-        )}
         {error && (
           <div className="mb-5 border border-ember bg-[rgba(184,87,8,.07)] px-4 py-3 text-sm text-ember">
             {error}
@@ -144,24 +161,28 @@ export function AdminAddQuestion() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={4}
-              placeholder="Type out the question text — used for search and tagging."
               className="w-full border border-admin-line bg-white px-2.5 py-2 text-sm"
             />
           </label>
 
           <div className="grid grid-cols-2 gap-4">
-            <ImageField label="Question crop" file={contentFile} onChange={setContentFile} />
-            <ImageField label="Marking scheme crop" file={schemeFile} onChange={setSchemeFile} />
+            <ImageField label="Question crop" file={contentFile} onChange={setContentFile} initialUrl={question.content.url} />
+            <ImageField label="Marking scheme crop" file={schemeFile} onChange={setSchemeFile} initialUrl={schemeUrl} />
           </div>
 
-          <button
-            type="submit"
-            disabled={!valid || submitting}
-            className="cursor-pointer self-start border-none px-6 py-3 font-body text-sm font-semibold text-cobalt-ink transition-colors disabled:cursor-not-allowed"
-            style={{ background: valid && !submitting ? "var(--color-cobalt)" : "var(--color-admin-graphite)", opacity: valid && !submitting ? 1 : 0.5 }}
-          >
-            {submitting ? "Uploading…" : "Add question"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={!valid || submitting}
+              className="cursor-pointer self-start border-none px-6 py-3 font-body text-sm font-semibold text-cobalt-ink transition-colors disabled:cursor-not-allowed"
+              style={{ background: valid && !submitting ? "var(--color-cobalt)" : "var(--color-admin-graphite)", opacity: valid && !submitting ? 1 : 0.5 }}
+            >
+              {submitting ? "Saving…" : "Save changes"}
+            </button>
+            <Link to="/admin/questions/all" className="text-sm font-medium text-admin-graphite hover:text-admin-ink hover:underline">
+              Cancel
+            </Link>
+          </div>
         </form>
       </main>
     </div>

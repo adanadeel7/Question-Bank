@@ -13,4 +13,6 @@ const createQuestionSchema = z.object({
     text: z.string().min(1),
 })
 
-export { createQuestionSchema }
+const updateQuestionSchema = createQuestionSchema.partial()
+
+export { createQuestionSchema, updateQuestionSchema }

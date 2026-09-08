@@ -6,6 +6,7 @@ import authRouter from './routes/auth.routes'
 import questionRouter from './routes/createQuestionAdmin.routes.js'
 import userquestionRouter from './routes/createQuestionUser.js'
 import attemptRouter from './routes/attempts.routes.js'
+import meRouter from './routes/me.routes.js'
 
 const app = express()
 
@@ -34,6 +35,7 @@ app.use('/auth',authRouter)
 app.use('/admin/questions', questionRouter)
 app.use('/questions',userquestionRouter)
 app.use('/attempts',attemptRouter)
+app.use('/me',meRouter)
 
 
 export default app; 

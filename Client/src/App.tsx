@@ -17,6 +17,8 @@ import { AdminIngestionQueue } from "./pages/admin/AdminIngestionQueue";
 import { AdminQuestionEditor } from "./pages/admin/AdminQuestionEditor";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminAddQuestion } from "./pages/admin/AdminAddQuestion";
+import { AdminBrowseQuestions } from "./pages/admin/AdminBrowseQuestions";
+import { AdminEditQuestion } from "./pages/admin/AdminEditQuestion";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App() {
@@ -116,10 +118,26 @@ function App() {
         }
       />
       <Route
+        path="/admin/questions/all"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminBrowseQuestions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/questions/editor"
         element={
           <ProtectedRoute requireAdmin>
             <AdminQuestionEditor />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/:id/edit"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminEditQuestion />
           </ProtectedRoute>
         }
       />
