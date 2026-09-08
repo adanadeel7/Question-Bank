@@ -57,6 +57,7 @@ async function registerHandler(req: Request, res: Response) {
     const verifyToken = jwt.sign(
       {
         sub: newlyCreatedUser.id,
+        purpose: "email-verify",
       },
       jwt_Secret,
       {
@@ -111,7 +112,12 @@ async function verifyEmailHandler(req: Request, res: Response) {
 
     const payload = jwt.verify(token, jwt_Secret, { algorithms: ["HS256"] }) as {
       sub: string;
+      purpose?: string;
     };
+
+    if (payload.purpose !== "email-verify") {
+      return res.status(400).json({ message: "Invalid verification token" });
+    }
 
     const user = await User.findById(payload.sub);
 

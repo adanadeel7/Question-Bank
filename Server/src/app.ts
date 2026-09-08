@@ -1,11 +1,16 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
 import rateLimit from 'express-rate-limit'
 import authRouter from './routes/auth.routes'
 import questionRouter from './routes/createQuestion.routes.js'
 
 const app = express()
 
+app.use(cors({
+    origin : process.env.APP_URL,
+    credentials : true,
+}))
 app.use(express.json())
 app.use(cookieParser())
 

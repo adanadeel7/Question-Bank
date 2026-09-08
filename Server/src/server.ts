@@ -1,12 +1,9 @@
+import 'dotenv/config'
 import app from './app.js'
-import dotenv from 'dotenv'
 import ConnectoDB from './config/db.js'
 import http from 'http'
 
-
-dotenv.config()
-
-async function startServer() { 
+async function startServer() {
     await ConnectoDB()
 
     const server = http.createServer(app)   

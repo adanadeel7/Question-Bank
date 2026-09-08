@@ -32,6 +32,10 @@ const protect = async (req: Request, res: Response, next: NextFunction) => {
       return res.status(401).json({ message: "Not authorized, user not found" });
     }
 
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ message: "Not authorized, token expired" });
+    }
+
     req.user = user;
     return next();
   } catch (error) {
