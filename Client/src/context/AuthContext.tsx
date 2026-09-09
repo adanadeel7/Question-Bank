@@ -32,10 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccessToken(data.accessToken);
         setApiAccessToken(data.accessToken);
       })
-      .catch(() => {
-        setUser(null);
-        setAccessToken(null);
-        setApiAccessToken(null);
+      .catch((err) => {
+        // Only a genuine 401 means "not logged in" — a rate limit (429) or
+        // network hiccup here doesn't mean the refresh cookie is invalid,
+        // so don't wipe a session that might still be perfectly valid.
+        if (err instanceof ApiError && err.status === 401) {
+          setUser(null);
+          setAccessToken(null);
+          setApiAccessToken(null);
+        }
       })
       .finally(() => setLoading(false));
   }, []);

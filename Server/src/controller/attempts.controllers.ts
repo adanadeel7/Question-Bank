@@ -3,6 +3,8 @@ import { Attempt } from "../models/Attempt.models.js";
 import { Question } from "../models/Questions.models.js";
 import { UserStats } from "../models/userStats.models.js";
 import { attemptSchema } from "./attempts.schema.js";
+import { History } from "../models/History.models.js";
+
 
 async function createAttemptHandler(req: Request, res: Response) {
   try {
@@ -52,6 +54,17 @@ async function createAttemptHandler(req: Request, res: Response) {
       },
       { upsert: true },
     );
+
+    try {
+      await History.create({
+        user: req.user!.id,
+        question,
+        marksScored,
+        timeTaken,
+      });
+    } catch (historyError) {
+      console.log("History write failed (non-fatal):", historyError);
+    }
 
     return res.status(201).json({
       message: "Attempt recorded",

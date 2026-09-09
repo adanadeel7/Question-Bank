@@ -7,6 +7,7 @@ import questionRouter from './routes/createQuestionAdmin.routes.js'
 import userquestionRouter from './routes/createQuestionUser.js'
 import attemptRouter from './routes/attempts.routes.js'
 import meRouter from './routes/me.routes.js'
+import historyRouter from './routes/history.routes.js'
 
 const app = express()
 
@@ -17,9 +18,19 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 
-const apiLimiter = rateLimit({
+// Auth endpoints are brute-force targets (login especially), so they get a tight, dedicated budget.
+const authLimiter = rateLimit({
     windowMs : 15 * 60 * 1000,
     max : 100,
+    standardHeaders : true,
+    legacyHeaders : false
+})
+
+// Everything else is normal app usage (practicing questions fires many legitimate requests),
+// so it gets a much looser budget — this just guards against abuse, not real usage.
+const apiLimiter = rateLimit({
+    windowMs : 15 * 60 * 1000,
+    max : 1000,
     standardHeaders : true,
     legacyHeaders : false
 })
@@ -31,11 +42,12 @@ app.get('/health', (req,res) => {
     res.json({status : 'ok'})
 })
 
-app.use('/auth',authRouter)
+app.use('/auth',authLimiter,authRouter)
 app.use('/admin/questions', questionRouter)
 app.use('/questions',userquestionRouter)
 app.use('/attempts',attemptRouter)
 app.use('/me',meRouter)
+app.use('/history',historyRouter)
 
 
 export default app; 

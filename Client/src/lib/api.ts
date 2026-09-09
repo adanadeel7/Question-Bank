@@ -176,3 +176,25 @@ export function getMyStatsRequest() {
     method: "GET",
   });
 }
+
+export interface ApiHistoryEntry {
+  _id: string;
+  question: {
+    _id: string;
+    session: string;
+    year: number;
+    variant: number;
+    question_number: number;
+    topic: string;
+    marks: number;
+  };
+  marksScored: number;
+  timeTaken: number;
+  createdAt: string;
+}
+
+export function getHistoryRequest() {
+  return request<{ message: string; history: ApiHistoryEntry[] }>("/history", {
+    method: "GET",
+  });
+}
