@@ -408,4 +408,11 @@ async function meHandler(req: Request, res: Response) {
   });
 }
 
+async function googleAuthCallback(req:Request, res:Response) { 
+  let frontend = process.env.FRONTEND_URL
+
+
+  
+}
+
 export { verifyEmailHandler,loginHandler,refreshHandler,logoutHandler,registerHandler,forgotPasswordhandler,resetPasswordHandler,meHandler };
